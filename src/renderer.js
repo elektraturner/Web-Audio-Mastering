@@ -107,17 +107,36 @@ async function checkAvailableFilters() {
 
 function buildFilterChain(settings) {
   const filters = [];
+  let complexGraph = null;
 
   // 1. High-pass filter (clean low end)
   if (settings.cleanLowEnd) {
     filters.push('highpass=f=30');
   }
 
-  // 2. Center bass / crossfeed for headphone listening
-  if (settings.centerBass) {
-    // crossfeed blends L/R channels for more natural headphone experience
-    // strength: 0-1 (0.3 = subtle, natural crossfeed)
-    filters.push('crossfeed=strength=0.3');
+  // 2. Stereo width processing (M/S technique)
+  // Check if we need stereo processing (width != 100% or monoBass enabled)
+  const stereoWidth = settings.stereoWidth !== undefined ? settings.stereoWidth / 100 : 1.0; // Convert % to 0-2 range
+  const needsStereoProcessing = stereoWidth !== 1.0 || settings.centerBass;
+
+  if (needsStereoProcessing) {
+    // Build frequency-dependent M/S stereo width filter using filter_complex
+    // This splits bass from highs, applies different width to each, and recombines
+    const bassWidth = settings.centerBass ? 0.3 : stereoWidth; // 30% width for mono bass, or global width
+    const highsWidth = stereoWidth;
+
+    // stereotools slev controls side level (0 = mono, 1 = original, 2 = extra wide)
+    // We use asplit to duplicate, process bass and highs separately, then amix to combine
+    if (settings.centerBass) {
+      // Frequency-dependent: narrow bass, user-controlled highs
+      complexGraph = `asplit=2[lo][hi];` +
+        `[lo]lowpass=f=80,stereotools=slev=${bassWidth.toFixed(2)}[lo_out];` +
+        `[hi]highpass=f=80,stereotools=slev=${highsWidth.toFixed(2)}[hi_out];` +
+        `[lo_out][hi_out]amix=inputs=2:weights=1 1`;
+    } else {
+      // Just overall stereo width adjustment
+      filters.push(`stereotools=slev=${stereoWidth.toFixed(2)}`);
+    }
   }
 
   // 3. 5-band EQ
@@ -170,7 +189,7 @@ function buildFilterChain(settings) {
     filters.push(`alimiter=limit=${limitLinear}:attack=0.1:release=50`);
   }
 
-  return filters;
+  return { filters, complexGraph };
 }
 
 async function processAudioWithFFmpeg(inputData, inputName, outputName, settings, onProgress) {
@@ -185,12 +204,22 @@ async function processAudioWithFFmpeg(inputData, inputName, outputName, settings
   if (onProgress) onProgress(10);
 
   // Build filter chain
-  const filters = buildFilterChain(settings);
+  const { filters, complexGraph } = buildFilterChain(settings);
 
   // Build FFmpeg command
   const args = ['-i', inputName];
 
-  if (filters.length > 0) {
+  // Use filter_complex for frequency-dependent stereo processing, otherwise use simple -af
+  if (complexGraph) {
+    // Complex filter graph for M/S stereo width with frequency splitting
+    // Append remaining filters after the amix output
+    const remainingFilters = filters.join(',');
+    const fullGraph = remainingFilters
+      ? `${complexGraph},${remainingFilters}`
+      : complexGraph;
+    args.push('-filter_complex', fullGraph);
+  } else if (filters.length > 0) {
+    // Simple linear filter chain
     args.push('-af', filters.join(','));
   }
 
@@ -257,6 +286,19 @@ const fileState = {
   selectedFilePath: null
 };
 
+// Level meter state
+const meterState = {
+  levels: [0, 0],       // Current levels (linear, 0-1)
+  peakLevels: [-Infinity, -Infinity],  // Peak hold in dB
+  peakHoldTimes: [0, 0],  // When peak was set
+  overload: false,
+  overloadTime: 0,
+  animationId: null,
+  PEAK_HOLD_TIME: 1.5,    // seconds
+  FALL_RATE: 25,          // dB per second
+  OVERLOAD_DISPLAY_TIME: 2.0  // seconds
+};
+
 let isProcessing = false;
 let processingCancelled = false;
 
@@ -310,6 +352,8 @@ const truePeakSlider = document.getElementById('truePeakCeiling');
 const ceilingValue = document.getElementById('ceilingValue');
 const cleanLowEnd = document.getElementById('cleanLowEnd');
 const glueCompression = document.getElementById('glueCompression');
+const stereoWidthSlider = document.getElementById('stereoWidth');
+const stereoWidthValue = document.getElementById('stereoWidthValue');
 const centerBass = document.getElementById('centerBass');
 const cutMud = document.getElementById('cutMud');
 const addAir = document.getElementById('addAir');
@@ -323,6 +367,13 @@ const eqLowMid = document.getElementById('eqLowMid');
 const eqMid = document.getElementById('eqMid');
 const eqHighMid = document.getElementById('eqHighMid');
 const eqHigh = document.getElementById('eqHigh');
+
+// Level meter elements
+const meterCanvas = document.getElementById('meterCanvas');
+const meterCtx = meterCanvas ? meterCanvas.getContext('2d') : null;
+const peakLDisplay = document.getElementById('peakL');
+const peakRDisplay = document.getElementById('peakR');
+const overloadIndicator = document.getElementById('overloadIndicator');
 
 // Mini checklist
 const miniLufs = document.getElementById('mini-lufs');
@@ -501,6 +552,155 @@ function updateEQ() {
 }
 
 // ============================================================================
+// Level Meter
+// ============================================================================
+
+function amplitudeToDB(amplitude) {
+  return 20 * Math.log10(amplitude < 1e-8 ? 1e-8 : amplitude);
+}
+
+function updateLevelMeter() {
+  if (!audioNodes.analyser || !meterCtx || !playerState.isPlaying) return;
+
+  const time = performance.now() / 1000;
+  const analyser = audioNodes.analyser;
+
+  // Get frequency data (we'll use time domain for peak detection)
+  const bufferLength = analyser.fftSize;
+  const dataArray = new Float32Array(bufferLength);
+  analyser.getFloatTimeDomainData(dataArray);
+
+  // Calculate peak for left and right (assuming interleaved or we approximate with full buffer)
+  // Since Web Audio AnalyserNode gives us mono-mixed data, we'll use it for both channels
+  let peak = 0;
+  for (let i = 0; i < bufferLength; i++) {
+    const absValue = Math.abs(dataArray[i]);
+    if (absValue > peak) peak = absValue;
+  }
+
+  // Use same peak for both channels (limitation of AnalyserNode)
+  const peaks = [peak, peak];
+  const dbLevels = peaks.map(p => amplitudeToDB(p));
+
+  // Update levels with fall rate
+  const deltaTime = 1 / 60; // Approximate frame time
+  for (let ch = 0; ch < 2; ch++) {
+    const fallingLevel = meterState.levels[ch] - meterState.FALL_RATE * deltaTime;
+    meterState.levels[ch] = Math.max(dbLevels[ch], Math.max(-96, fallingLevel));
+
+    // Update peak hold
+    if (dbLevels[ch] > meterState.peakLevels[ch]) {
+      meterState.peakLevels[ch] = dbLevels[ch];
+      meterState.peakHoldTimes[ch] = time;
+    } else if (time > meterState.peakHoldTimes[ch] + meterState.PEAK_HOLD_TIME) {
+      // Let peak fall after hold time
+      const fallingPeak = meterState.peakLevels[ch] - meterState.FALL_RATE * deltaTime;
+      meterState.peakLevels[ch] = Math.max(fallingPeak, meterState.levels[ch]);
+    }
+  }
+
+  // Check overload
+  if (peak > 1.0) {
+    meterState.overload = true;
+    meterState.overloadTime = time;
+  } else if (time > meterState.overloadTime + meterState.OVERLOAD_DISPLAY_TIME) {
+    meterState.overload = false;
+  }
+
+  // Draw meter
+  drawMeter();
+
+  // Update peak displays
+  if (peakLDisplay) {
+    const peakL = meterState.peakLevels[0];
+    peakLDisplay.textContent = `L: ${peakL > -96 ? peakL.toFixed(1) : '-∞'} dB`;
+  }
+  if (peakRDisplay) {
+    const peakR = meterState.peakLevels[1];
+    peakRDisplay.textContent = `R: ${peakR > -96 ? peakR.toFixed(1) : '-∞'} dB`;
+  }
+
+  // Update overload indicator
+  if (overloadIndicator) {
+    overloadIndicator.classList.toggle('active', meterState.overload);
+  }
+
+  // Continue animation
+  meterState.animationId = requestAnimationFrame(updateLevelMeter);
+}
+
+function drawMeter() {
+  if (!meterCtx) return;
+
+  const width = meterCanvas.width;
+  const height = meterCanvas.height;
+  const dbRange = 48; // -48 to 0 dB
+  const dbStart = -48;
+  const channelHeight = height / 2 - 1;
+
+  // Clear canvas
+  meterCtx.fillStyle = '#0a0a0a';
+  meterCtx.fillRect(0, 0, width, height);
+
+  // Draw each channel
+  for (let ch = 0; ch < 2; ch++) {
+    const y = ch * (height / 2);
+    const level = meterState.levels[ch];
+    const peakLevel = meterState.peakLevels[ch];
+
+    // Create gradient
+    const gradient = meterCtx.createLinearGradient(0, 0, width, 0);
+    gradient.addColorStop(0, '#22c55e');           // Green
+    gradient.addColorStop(0.75, '#22c55e');        // Green until -12dB
+    gradient.addColorStop(0.75, '#eab308');        // Yellow
+    gradient.addColorStop(0.875, '#eab308');       // Yellow until -6dB
+    gradient.addColorStop(0.875, '#ef4444');       // Red
+    gradient.addColorStop(1, '#ef4444');           // Red
+
+    // Draw level bar
+    const levelWidth = Math.max(0, ((level - dbStart) / dbRange) * width);
+    meterCtx.fillStyle = gradient;
+    meterCtx.fillRect(0, y + 1, levelWidth, channelHeight);
+
+    // Draw peak indicator
+    if (peakLevel > -96) {
+      const peakX = ((peakLevel - dbStart) / dbRange) * width;
+      meterCtx.fillStyle = '#ffffff';
+      meterCtx.fillRect(Math.max(0, peakX - 1), y + 1, 2, channelHeight);
+    }
+  }
+
+  // Draw channel separator
+  meterCtx.fillStyle = '#333';
+  meterCtx.fillRect(0, height / 2 - 0.5, width, 1);
+}
+
+function startMeter() {
+  if (!meterState.animationId) {
+    // Reset meter state
+    meterState.levels = [-96, -96];
+    meterState.peakLevels = [-Infinity, -Infinity];
+    meterState.overload = false;
+    updateLevelMeter();
+  }
+}
+
+function stopMeter() {
+  if (meterState.animationId) {
+    cancelAnimationFrame(meterState.animationId);
+    meterState.animationId = null;
+  }
+  // Reset display
+  meterState.levels = [-96, -96];
+  meterState.peakLevels = [-Infinity, -Infinity];
+  meterState.overload = false;
+  drawMeter();
+  if (peakLDisplay) peakLDisplay.textContent = 'L: -∞ dB';
+  if (peakRDisplay) peakRDisplay.textContent = 'R: -∞ dB';
+  if (overloadIndicator) overloadIndicator.classList.remove('active');
+}
+
+// ============================================================================
 // EQ Presets
 // ============================================================================
 
@@ -604,6 +804,7 @@ function playAudio() {
       playerState.isPlaying = false;
       playIcon.textContent = '▶️';
       clearInterval(playerState.seekUpdateInterval);
+      stopMeter();
     }
   };
 
@@ -612,6 +813,7 @@ function playAudio() {
   audioNodes.source.start(0, offset);
   playerState.isPlaying = true;
   playIcon.textContent = '⏸️';
+  startMeter();
 
   clearInterval(playerState.seekUpdateInterval);
   playerState.seekUpdateInterval = setInterval(() => {
@@ -635,6 +837,7 @@ function pauseAudio() {
 
   playerState.pauseTime = audioNodes.context.currentTime - playerState.startTime;
   stopAudio();
+  stopMeter();
 }
 
 function stopAudio() {
@@ -782,6 +985,7 @@ playBtn.addEventListener('click', () => {
 
 stopBtn.addEventListener('click', () => {
   stopAudio();
+  stopMeter();
   playerState.pauseTime = 0;
   seekBar.value = 0;
   currentTimeEl.textContent = '0:00';
@@ -836,6 +1040,7 @@ processBtn.addEventListener('click', async () => {
     truePeakCeiling: parseFloat(truePeakSlider.value),
     cleanLowEnd: cleanLowEnd.checked,
     glueCompression: glueCompression.checked,
+    stereoWidth: parseInt(stereoWidthSlider.value),
     centerBass: centerBass.checked,
     cutMud: cutMud.checked,
     addAir: addAir.checked,
@@ -938,6 +1143,10 @@ function updateChecklist() {
 truePeakSlider.addEventListener('input', () => {
   ceilingValue.textContent = `${truePeakSlider.value} dB`;
   updateAudioChain();
+});
+
+stereoWidthSlider.addEventListener('input', () => {
+  stereoWidthValue.textContent = `${stereoWidthSlider.value}%`;
 });
 
 // Output format presets

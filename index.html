@@ -81,6 +81,22 @@
             </div>
             <button id="bypassBtn" class="btn-bypass">🔊 FX On</button>
           </div>
+          <div class="level-meter" id="levelMeter">
+            <canvas id="meterCanvas" width="600" height="40"></canvas>
+            <div class="meter-labels">
+              <span>-48</span>
+              <span>-36</span>
+              <span>-24</span>
+              <span>-12</span>
+              <span>-6</span>
+              <span>0</span>
+            </div>
+            <div class="peak-display">
+              <span id="peakL">L: -∞ dB</span>
+              <span id="peakR">R: -∞ dB</span>
+            </div>
+            <div class="overload-indicator" id="overloadIndicator">CLIP</div>
+          </div>
         </div>
       </div>
 
@@ -117,8 +133,17 @@
             <input type="checkbox" id="cleanLowEnd" checked>
             <span class="toggle"></span>
           </label>
-          <label class="toggle-row" data-tip="Makes bass frequencies mono for better club/speaker compatibility. Export only - no preview available.">
-            <span>Center Bass <span class="export-badge">Export Only</span></span>
+        </div>
+
+        <div class="settings-card">
+          <h3>📐 Stereo <span class="export-badge">Export Only</span></h3>
+          <div class="slider-row" data-tip="Stereo width: 0% = mono, 100% = original, 200% = extra wide.">
+            <span>Width</span>
+            <input type="range" id="stereoWidth" min="0" max="200" step="5" value="100">
+            <span class="slider-value" id="stereoWidthValue">100%</span>
+          </div>
+          <label class="toggle-row" data-tip="Narrows bass below 80Hz for better club/speaker mono compatibility.">
+            <span>Mono Bass</span>
             <input type="checkbox" id="centerBass">
             <span class="toggle"></span>
           </label>
