@@ -26,11 +26,20 @@ async function initFFmpeg(onProgress) {
 
     ffmpeg = new FFmpeg();
 
-    // Progress callback
+    // Progress callback - updates both export progress and loading modal
     ffmpeg.on('progress', ({ progress }) => {
+      // Update export progress if callback provided
       if (onProgress) {
-        // Scale progress to 10-100% (first 10% is loading)
         onProgress(10 + Math.round(progress * 90));
+      }
+      // Update loading modal if visible (during file load normalization)
+      const modal = document.getElementById('loadingModal');
+      if (modal && !modal.classList.contains('hidden')) {
+        const percent = 30 + Math.round(progress * 50); // 30-80% range for normalization
+        const bar = document.getElementById('loadingProgressBar');
+        const text = document.getElementById('loadingPercent');
+        if (bar) bar.style.width = `${percent}%`;
+        if (text) text.textContent = `${percent}%`;
       }
     });
 
