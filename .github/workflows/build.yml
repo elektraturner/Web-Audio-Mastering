@@ -43,10 +43,10 @@ jobs:
         with:
           name: ${{ matrix.platform }}-build
           path: |
-            dist/*.exe
-            dist/*.dmg
-            dist/*.AppImage
-            dist/*.blockmap
+            release/*.exe
+            release/*.dmg
+            release/*.AppImage
+            release/*.blockmap
           if-no-files-found: ignore
 
   release:

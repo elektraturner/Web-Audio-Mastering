@@ -96,6 +96,19 @@ ipcMain.handle('read-file-data', async (event, filePath) => {
   const normalized = path.normalize(filePath);
   const resolved = path.resolve(normalized);
 
+  // Validate path is in allowed locations (defense in depth)
+  const allowedDirs = [
+    app.getPath('home'),
+    app.getPath('documents'),
+    app.getPath('downloads'),
+    app.getPath('music'),
+    app.getPath('desktop')
+  ];
+  const isAllowed = allowedDirs.some(dir => resolved.toLowerCase().startsWith(dir.toLowerCase()));
+  if (!isAllowed) {
+    throw new Error('File path not in allowed directory');
+  }
+
   if (!fs.existsSync(resolved)) {
     throw new Error('File not found');
   }

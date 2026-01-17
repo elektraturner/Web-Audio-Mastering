@@ -3,7 +3,6 @@ import { Fader } from './components/Fader.js';
 
 let wavesurfer = null;
 let currentBlobUrl = null; // Track blob URL for cleanup
-let isSeeking = false; // Seek lock to prevent race conditions
 
 // Fader instances
 const faders = {
@@ -349,6 +348,25 @@ const miniFormat = document.getElementById('mini-format');
 // ============================================================================
 // Web Audio API (for real-time preview)
 // ============================================================================
+
+async function cleanupAudioContext() {
+  // Stop any playing audio first
+  if (playerState.isPlaying) {
+    stopAudio();
+  }
+  // Close existing AudioContext to prevent memory leaks
+  if (audioNodes.context && audioNodes.context.state !== 'closed') {
+    try {
+      await audioNodes.context.close();
+    } catch (e) {
+      console.warn('Error closing AudioContext:', e);
+    }
+    // Reset all audio nodes
+    Object.keys(audioNodes).forEach(key => {
+      audioNodes[key] = null;
+    });
+  }
+}
 
 function initAudioContext() {
   if (!audioNodes.context) {
@@ -1131,71 +1149,77 @@ function initWaveSurfer(audioBuffer, originalBlob) {
     currentBlobUrl = null;
   }
 
-  // Create gradient
-  const ctx = document.createElement('canvas').getContext('2d');
-  const waveGradient = ctx.createLinearGradient(0, 0, 0, 48);
-  waveGradient.addColorStop(0, 'rgba(188, 177, 231, 0.8)');
-  waveGradient.addColorStop(0.5, 'rgba(154, 143, 209, 0.6)');
-  waveGradient.addColorStop(1, 'rgba(100, 90, 160, 0.3)');
+  try {
+    // Create gradient
+    const ctx = document.createElement('canvas').getContext('2d');
+    const waveGradient = ctx.createLinearGradient(0, 0, 0, 48);
+    waveGradient.addColorStop(0, 'rgba(188, 177, 231, 0.8)');
+    waveGradient.addColorStop(0.5, 'rgba(154, 143, 209, 0.6)');
+    waveGradient.addColorStop(1, 'rgba(100, 90, 160, 0.3)');
 
-  const progressGradient = ctx.createLinearGradient(0, 0, 0, 48);
-  progressGradient.addColorStop(0, '#BCB1E7');
-  progressGradient.addColorStop(0.5, '#9A8FD1');
-  progressGradient.addColorStop(1, '#7A6FB1');
+    const progressGradient = ctx.createLinearGradient(0, 0, 0, 48);
+    progressGradient.addColorStop(0, '#BCB1E7');
+    progressGradient.addColorStop(0.5, '#9A8FD1');
+    progressGradient.addColorStop(1, '#7A6FB1');
 
-  // Extract peaks for immediate display
-  const peaks = extractPeaks(audioBuffer);
+    // Extract peaks for immediate display
+    const peaks = extractPeaks(audioBuffer);
 
-  // Create blob URL for WaveSurfer (tracked for cleanup)
-  currentBlobUrl = URL.createObjectURL(originalBlob);
+    // Create blob URL for WaveSurfer (tracked for cleanup)
+    currentBlobUrl = URL.createObjectURL(originalBlob);
 
-  wavesurfer = WaveSurfer.create({
-    container: '#waveform',
-    waveColor: waveGradient,
-    progressColor: progressGradient,
-    cursorColor: '#ffffff',
-    cursorWidth: 2,
-    height: 48,
-    barWidth: 2,
-    barGap: 1,
-    barRadius: 2,
-    normalize: true,
-    interact: true,
-    dragToSeek: true,
-    url: currentBlobUrl,
-    peaks: [peaks],
-    duration: audioBuffer.duration,
-  });
+    wavesurfer = WaveSurfer.create({
+      container: '#waveform',
+      waveColor: waveGradient,
+      progressColor: progressGradient,
+      cursorColor: '#ffffff',
+      cursorWidth: 2,
+      height: 48,
+      barWidth: 2,
+      barGap: 1,
+      barRadius: 2,
+      normalize: true,
+      interact: true,
+      dragToSeek: true,
+      url: currentBlobUrl,
+      peaks: [peaks],
+      duration: audioBuffer.duration,
+    });
 
-  // Custom hover handler (uses our known duration, not WaveSurfer's state)
-  setupWaveformHover(audioBuffer.duration);
+    // Custom hover handler (uses our known duration, not WaveSurfer's state)
+    setupWaveformHover(audioBuffer.duration);
 
-  // Mute wavesurfer - we use our own Web Audio chain
-  wavesurfer.setVolume(0);
+    // Mute wavesurfer - we use our own Web Audio chain
+    wavesurfer.setVolume(0);
 
-  // Log when audio is ready
-  wavesurfer.on('ready', () => {
-    console.log('WaveSurfer ready, duration:', wavesurfer.getDuration());
-  });
+    // Log when audio is ready
+    wavesurfer.on('ready', () => {
+      console.log('WaveSurfer ready, duration:', wavesurfer.getDuration());
+    });
 
-  // Handle click for seeking (click gives relativeX 0-1)
-  wavesurfer.on('click', (relativeX) => {
-    const duration = audioNodes.buffer?.duration || wavesurfer.getDuration();
-    const time = relativeX * duration;
-    console.log('WaveSurfer click:', relativeX, 'time:', time);
-    seekBar.value = time;
-    currentTimeEl.textContent = formatTime(time);
-    seekTo(time);
-  });
+    // Handle click for seeking (click gives relativeX 0-1)
+    wavesurfer.on('click', (relativeX) => {
+      const duration = audioNodes.buffer?.duration || wavesurfer.getDuration();
+      const time = relativeX * duration;
+      console.log('WaveSurfer click:', relativeX, 'time:', time);
+      seekBar.value = time;
+      currentTimeEl.textContent = formatTime(time);
+      seekTo(time);
+    });
 
-  // Handle drag for seeking
-  wavesurfer.on('drag', (relativeX) => {
-    const duration = audioNodes.buffer?.duration || wavesurfer.getDuration();
-    const time = relativeX * duration;
-    seekBar.value = time;
-    currentTimeEl.textContent = formatTime(time);
-    seekTo(time);
-  });
+    // Handle drag for seeking
+    wavesurfer.on('drag', (relativeX) => {
+      const duration = audioNodes.buffer?.duration || wavesurfer.getDuration();
+      const time = relativeX * duration;
+      seekBar.value = time;
+      currentTimeEl.textContent = formatTime(time);
+      seekTo(time);
+    });
+  } catch (error) {
+    console.error('WaveSurfer initialization failed:', error);
+    wavesurfer = null;
+    // Application continues without waveform visualization
+  }
 }
 
 function extractPeaks(audioBuffer, numPeaks = 1000) {
@@ -1219,6 +1243,7 @@ function extractPeaks(audioBuffer, numPeaks = 1000) {
 
 // Custom hover handler for waveform (uses known duration instead of WaveSurfer state)
 let hoverElements = null;
+let hoverListeners = null;
 
 function setupWaveformHover(duration) {
   const container = document.querySelector('#waveform');
@@ -1228,6 +1253,12 @@ function setupWaveformHover(duration) {
   if (hoverElements) {
     hoverElements.line.remove();
     hoverElements.label.remove();
+  }
+
+  // Remove old event listeners to prevent accumulation
+  if (hoverListeners) {
+    container.removeEventListener('mousemove', hoverListeners.move);
+    container.removeEventListener('mouseleave', hoverListeners.leave);
   }
 
   // Create hover line
@@ -1267,7 +1298,7 @@ function setupWaveformHover(duration) {
   hoverElements = { line, label };
 
   // Mouse move handler
-  container.addEventListener('mousemove', (e) => {
+  const moveHandler = (e) => {
     const rect = container.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const relX = Math.max(0, Math.min(1, x / rect.width));
@@ -1290,13 +1321,19 @@ function setupWaveformHover(duration) {
       label.style.left = `${x + 2}px`;
     }
     label.style.opacity = '1';
-  });
+  };
 
   // Mouse leave handler
-  container.addEventListener('mouseleave', () => {
+  const leaveHandler = () => {
     line.style.opacity = '0';
     label.style.opacity = '0';
-  });
+  };
+
+  container.addEventListener('mousemove', moveHandler);
+  container.addEventListener('mouseleave', leaveHandler);
+
+  // Store references for cleanup
+  hoverListeners = { move: moveHandler, leave: leaveHandler };
 }
 
 function audioBufferToBlob(buffer) {
@@ -1420,15 +1457,20 @@ function hideLoadingModal() {
   modalCancelBtn.classList.add('hidden');
 }
 
-// Modal cancel button handler
-modalCancelBtn.addEventListener('click', () => {
-  if (isProcessing) {
-    processingCancelled = true;
-    isProcessing = false;
-    hideLoadingModal();
-    showToast('Export cancelled.');
-  }
-});
+// Consolidated cancel handler to prevent race conditions
+function cancelProcessing() {
+  if (!isProcessing || processingCancelled) return;
+
+  processingCancelled = true;
+  // Disable buttons to prevent multiple cancel clicks
+  modalCancelBtn.disabled = true;
+  cancelBtn.disabled = true;
+  showLoadingModal('Cancelling...', 0, false);
+  // Note: isProcessing will be set false by the processing function
+  // We don't set it here to avoid race conditions
+}
+
+modalCancelBtn.addEventListener('click', cancelProcessing);
 
 async function loadAudioFile(filePath) {
   const ctx = initAudioContext();
@@ -1597,8 +1639,8 @@ function stopAudio() {
 
 function seekTo(time) {
   // Prevent race condition from rapid seeks
-  if (isSeeking) return;
-  isSeeking = true;
+  if (playerState.isSeeking) return;
+  playerState.isSeeking = true;
 
   playerState.pauseTime = time;
 
@@ -1628,7 +1670,6 @@ function seekTo(time) {
     playerState.startTime = audioNodes.context.currentTime - time;
     audioNodes.source.start(0, time);
 
-    clearInterval(playerState.seekUpdateInterval);
     playerState.seekUpdateInterval = setInterval(() => {
       if (playerState.isPlaying && audioNodes.buffer && !playerState.isSeeking) {
         const currentTime = audioNodes.context.currentTime - playerState.startTime;
@@ -1650,7 +1691,7 @@ function seekTo(time) {
   }
 
   // Release seek lock after a brief delay to allow audio to stabilize
-  setTimeout(() => { isSeeking = false; }, 50);
+  setTimeout(() => { playerState.isSeeking = false; }, 50);
 }
 
 function formatTime(seconds) {
@@ -1690,27 +1731,44 @@ changeFileBtn.addEventListener('click', async () => {
 });
 
 async function loadFile(filePath) {
-  fileState.selectedFilePath = filePath;
+  // Prevent loading while export is in progress
+  if (isProcessing) {
+    showToast('Cannot load file while processing', 'error');
+    return false;
+  }
 
-  // Load into Web Audio first to get metadata
-  const loaded = await loadAudioFile(filePath);
+  try {
+    // Cleanup previous AudioContext to prevent memory leaks
+    await cleanupAudioContext();
 
-  if (loaded && audioNodes.buffer) {
-    // Get file info from the decoded audio buffer and file path
-    const rawName = filePath.split(/[\\/]/).pop();
-    // Sanitize file name: remove control characters and limit length
-    const name = rawName.replace(/[\x00-\x1F\x7F]/g, '').substring(0, 100);
-    const ext = name.split('.').pop().toUpperCase();
-    const sampleRateKHz = Math.round(audioNodes.buffer.sampleRate / 1000);
-    const duration = formatTime(audioNodes.buffer.duration);
+    fileState.selectedFilePath = filePath;
 
-    fileName.textContent = name;
-    fileMeta.textContent = `${ext} • ${sampleRateKHz}kHz • ${duration}`;
+    // Load into Web Audio first to get metadata
+    const loaded = await loadAudioFile(filePath);
 
-    fileZoneContent.classList.add('hidden');
-    fileLoaded.classList.remove('hidden');
+    if (loaded && audioNodes.buffer) {
+      // Get file info from the decoded audio buffer and file path
+      const rawName = filePath.split(/[\\/]/).pop();
+      // Sanitize file name: remove control characters and limit length
+      const name = rawName.replace(/[\x00-\x1F\x7F]/g, '').substring(0, 100);
+      const ext = name.split('.').pop().toUpperCase();
+      const sampleRateKHz = Math.round(audioNodes.buffer.sampleRate / 1000);
+      const duration = formatTime(audioNodes.buffer.duration);
 
-    updateChecklist();
+      fileName.textContent = name;
+      fileMeta.textContent = `${ext} • ${sampleRateKHz}kHz • ${duration}`;
+
+      fileZoneContent.classList.add('hidden');
+      fileLoaded.classList.remove('hidden');
+
+      updateChecklist();
+      return true;
+    }
+    return false;
+  } catch (error) {
+    console.error('Error in loadFile:', error);
+    showToast(`Failed to load file: ${error.message}`, 'error');
+    return false;
   }
 }
 
@@ -1790,6 +1848,9 @@ processBtn.addEventListener('click', async () => {
   isProcessing = true;
   processingCancelled = false;
   processBtn.disabled = true;
+  // Re-enable cancel buttons for new processing
+  modalCancelBtn.disabled = false;
+  cancelBtn.disabled = false;
 
   // Parse and validate settings
   const parsedSampleRate = parseInt(sampleRate.value) || 44100;
@@ -1881,13 +1942,7 @@ processBtn.addEventListener('click', async () => {
   processBtn.disabled = false;
 });
 
-cancelBtn.addEventListener('click', () => {
-  if (isProcessing) {
-    processingCancelled = true;
-    isProcessing = false;
-    hideLoadingModal();
-  }
-});
+cancelBtn.addEventListener('click', cancelProcessing);
 
 // ============================================================================
 // Settings & Checklist
