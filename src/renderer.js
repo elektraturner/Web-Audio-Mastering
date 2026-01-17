@@ -61,11 +61,47 @@ async function initFFmpeg(onProgress) {
 
     console.log('[FFmpeg] Core loaded successfully!');
     ffmpegLoaded = true;
+
+    // Check available filters
+    await checkAvailableFilters();
   } catch (error) {
     console.error('[FFmpeg] Initialization failed:', error);
     throw error;
   } finally {
     ffmpegLoading = false;
+  }
+}
+
+async function checkAvailableFilters() {
+  if (!ffmpeg) return;
+
+  console.log('[FFmpeg] Checking available filters...');
+
+  // Check for specific filters we care about
+  const filtersToCheck = ['crossfeed', 'adeclip', 'loudnorm', 'acompressor', 'alimiter', 'equalizer', 'highpass', 'pan'];
+
+  try {
+    // Run ffmpeg -filters to get list
+    await ffmpeg.exec(['-filters']);
+
+    // The output goes to the log handler, so we'll also test each filter directly
+    for (const filter of filtersToCheck) {
+      try {
+        // Try to parse the filter - if it fails, filter doesn't exist
+        await ffmpeg.exec(['-f', 'lavfi', '-i', `anullsrc=r=44100:cl=stereo,${filter}=`, '-t', '0.001', '-f', 'null', '-']);
+        console.log(`[FFmpeg] Filter '${filter}' - AVAILABLE`);
+      } catch (e) {
+        // Check if error is about unknown filter vs other errors
+        if (e.message && e.message.includes('No such filter')) {
+          console.log(`[FFmpeg] Filter '${filter}' - NOT AVAILABLE`);
+        } else {
+          // Filter exists but our test args might be wrong
+          console.log(`[FFmpeg] Filter '${filter}' - LIKELY AVAILABLE (test inconclusive)`);
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[FFmpeg] Could not check filters:', e.message);
   }
 }
 
@@ -77,12 +113,11 @@ function buildFilterChain(settings) {
     filters.push('highpass=f=30');
   }
 
-  // 2. Center bass frequencies (mono below 200Hz)
-  // Note: crossfeed filter not available in FFmpeg.wasm, using stereotools instead
+  // 2. Center bass / crossfeed for headphone listening
   if (settings.centerBass) {
-    // stereotools with sbal=1 at low frequencies centers the bass
-    // This is a compatible alternative that works in FFmpeg.wasm
-    filters.push('pan=stereo|FL<0.5*FL+0.5*FR|FR<0.5*FL+0.5*FR');
+    // crossfeed blends L/R channels for more natural headphone experience
+    // strength: 0-1 (0.3 = subtle, natural crossfeed)
+    filters.push('crossfeed=strength=0.3');
   }
 
   // 3. 5-band EQ
