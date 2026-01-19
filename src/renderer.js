@@ -109,7 +109,7 @@ function measureLUFS(audioBuffer) {
   // Minimum block size required for LUFS measurement
   if (audioBuffer.duration < LUFS_CONSTANTS.BLOCK_SIZE_SEC) {
     console.warn(`[LUFS] Audio too short for reliable measurement (< ${LUFS_CONSTANTS.BLOCK_SIZE_SEC * 1000}ms)`);
-    return -14; // Return target LUFS as fallback
+    return targetLufsDb; // Return target LUFS as fallback
   }
 
   const channels = [];
@@ -355,6 +355,9 @@ const addAir = document.getElementById('addAir');
 const tameHarsh = document.getElementById('tameHarsh');
 const sampleRate = document.getElementById('sampleRate');
 const bitDepth = document.getElementById('bitDepth');
+const targetLufsSlider = document.getElementById('targetLufs');
+const targetLufsValue = document.getElementById('targetLufsValue');
+const miniLufsValue = document.getElementById('mini-lufs-value');
 
 // EQ values (managed by faders)
 let eqValues = {
@@ -368,6 +371,7 @@ let eqValues = {
 // Input gain and ceiling values (managed by faders)
 let inputGainValue = 0;  // dB
 let ceilingValueDb = -1; // dB
+let targetLufsDb = -9;   // Target LUFS for normalization (default -9)
 
 // Level meter elements
 const meterCanvas = document.getElementById('meterCanvas');
@@ -1603,8 +1607,8 @@ async function loadAudioFile(filePath) {
 
     showLoadingModal('Analyzing audio levels...', 50);
 
-    // Normalize to -14 LUFS using pure JavaScript
-    const normalizedBuffer = normalizeToLUFS(decodedBuffer, -14);
+    // Normalize to target LUFS using pure JavaScript
+    const normalizedBuffer = normalizeToLUFS(decodedBuffer, targetLufsDb);
 
     showLoadingModal('Applying normalization...', 70);
 
@@ -2103,6 +2107,15 @@ normalizeLoudness.addEventListener('change', () => {
 stereoWidthSlider.addEventListener('input', () => {
   stereoWidthValue.textContent = `${stereoWidthSlider.value}%`;
   updateStereoWidth();
+});
+
+// Target LUFS slider
+targetLufsSlider.addEventListener('input', () => {
+  targetLufsDb = parseInt(targetLufsSlider.value);
+  targetLufsValue.textContent = `${targetLufsDb} LUFS`;
+  if (miniLufsValue) {
+    miniLufsValue.textContent = `${targetLufsDb} LUFS`;
+  }
 });
 
 // Output format presets

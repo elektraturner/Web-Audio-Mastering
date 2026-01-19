@@ -20,7 +20,7 @@
       </div>
       <div class="header-right">
         <div class="checklist-mini">
-          <div class="check-item" id="mini-lufs"><span>●</span> -14 LUFS</div>
+          <div class="check-item" id="mini-lufs"><span>●</span> <span id="mini-lufs-value">-9 LUFS</span></div>
           <div class="check-item" id="mini-peak"><span>●</span> True Peak</div>
           <div class="check-item" id="mini-format"><span>●</span> WAV Ready</div>
         </div>
@@ -204,11 +204,16 @@
             <div id="ceilingFader" class="fader-container" data-tip="Maximum peak level. -1dB is standard for streaming."></div>
           </div>
           <div class="loudness-toggles">
-            <label class="toggle-row" data-tip="Adjusts overall volume to Spotify's -14 LUFS standard. Processed in background on file load.">
-              <span>Normalize -14 LUFS</span>
+            <label class="toggle-row" data-tip="Normalize loudness to target LUFS. -14 for Spotify, -9 for louder masters.">
+              <span>Normalize Loudness</span>
               <input type="checkbox" id="normalizeLoudness" checked>
               <span class="toggle"></span>
             </label>
+            <div class="slider-row target-lufs-row" data-tip="Target loudness: -16 (quiet) to -6 (loud). -14 is Spotify standard, -9 is typical for modern masters.">
+              <span>Target</span>
+              <input type="range" id="targetLufs" min="-16" max="-6" step="1" value="-9">
+              <span class="slider-value" id="targetLufsValue">-9 LUFS</span>
+            </div>
             <label class="toggle-row" data-tip="Prevents audio from clipping by limiting peaks to the ceiling value.">
               <span>True Peak Limit</span>
               <input type="checkbox" id="truePeakLimit" checked>
