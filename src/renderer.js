@@ -1473,7 +1473,7 @@ const eqPresets = {
   bass: { low: 6, lowMid: 3, mid: 0, highMid: -1, high: -2 },
   bright: { low: -1, lowMid: 0, mid: 1, highMid: 3, high: 5 },
   warm: { low: 3, lowMid: 2, mid: 0, highMid: -2, high: -3 },
-  suno: { low: 1, lowMid: -2, mid: 1, highMid: -1, high: 2 }
+  aifix: { low: 1, lowMid: -2, mid: 1, highMid: -1, high: 2 }
 };
 
 document.querySelectorAll('.preset-btn').forEach(btn => {

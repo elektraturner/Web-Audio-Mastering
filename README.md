@@ -1,9 +1,9 @@
-# Suno Song Remaster
+# Web Audio Mastering
 
 A desktop app for mastering AI-generated music (Suno, Udio, etc.) to streaming-ready quality.
 
 <p align="center">
-  <img src="image.png" alt="Suno Song Remaster" width="300">
+  <img src="image.png" alt="Web Audio Mastering" width="300">
   <img src="ui.png" alt="Screenshot" width="500">
 </p>
 
@@ -17,7 +17,7 @@ A desktop app for mastering AI-generated music (Suno, Udio, etc.) to streaming-r
 
 ### EQ & Tonal
 - **5-Band Parametric EQ** - Fine-tune frequencies (80Hz, 250Hz, 1kHz, 4kHz, 12kHz)
-- **EQ Presets** - Flat, Vocal Boost, Bass Boost, Bright, Warm, Suno Fix
+- **EQ Presets** - Flat, Vocal Boost, Bass Boost, Bright, Warm, AI Fix
 - **Cut Mud** - Reduce muddy frequencies around 250Hz
 - **Add Air** - Sparkle and brightness with 12kHz high shelf boost
 - **Tame Harshness** - Reduce harsh frequencies around 4-6kHz
@@ -42,11 +42,9 @@ A desktop app for mastering AI-generated music (Suno, Udio, etc.) to streaming-r
 
 Get the latest release for your platform:
 
-- **Windows** - `.exe` installer
+- **Windows** - `.exe` portable
 - **macOS** - `.dmg` disk image
 - **Linux** - `.AppImage`
-
-[Download from Releases](https://github.com/SUP3RMASS1VE/Suno-Song-Remaster/releases)
 
 ## Usage
 
@@ -77,6 +75,7 @@ npm run build:linux  # Linux
 - Vite 7 (build system)
 - Web Audio API (preview and export processing)
 - Pure JavaScript LUFS measurement (ITU-R BS.1770-4)
+- WaveSurfer.js (waveform visualization)
 
 ## License
 
@@ -84,123 +83,16 @@ ISC
 
 ---
 
-## Changelog
+## Acknowledgements
 
-### v1.3.1 (2026-01-17)
+This project is based on [Suno-Song-Remaster](https://github.com/SUP3RMASS1VE/Suno-Song-Remaster) by SUP3RMASS1VE, licensed under the ISC License.
 
-**UI Overhaul**
-- Redesigned layout from sidebar to horizontal header for better use of space
-- Added WaveSurfer.js waveform visualization with click-to-seek functionality
-- Replaced sliders with vertical faders for Input Gain, Ceiling, and 5-band EQ
-- Updated transport controls (Play, Stop, Bypass) with SVG icons
-- "Live" badges now hidden until audio is loaded
+```
+ISC License
 
-**New Features**
-- Input Gain fader - adjust input level before processing (-12dB to +12dB)
-- Ceiling fader - precise true peak ceiling control (-3dB to 0dB)
-- Window auto-resizes to optimal size (1050x910) when audio loads
-- Toast notifications with 5-second auto-dismiss
+Copyright (c) SUP3RMASS1VE
 
-**Export Improvements**
-- Export now shows modal with progress bar (same style as file loading)
-- Cancel button available in export modal
-- Better progress feedback during rendering
-
-**UI Polish**
-- Consistent fader heights across Loudness and EQ sections
-- Improved spacing between waveform and level meter
-- Added visual separator between EQ faders and presets
-
-### v1.3.0 (2026-01-17)
-
-**Removed FFmpeg Dependency**
-- Completely removed FFmpeg.wasm - app now uses pure JavaScript for all audio processing
-- Faster file loading (no WASM initialization delay)
-- Smaller app bundle size
-- No more cross-origin isolation requirements
-
-**Pure JavaScript LUFS Measurement**
-- Implemented ITU-R BS.1770-4 compliant loudness measurement
-- K-weighting filters (high shelf + high pass) for perceptual loudness
-- 400ms blocks with 75% overlap for accurate integrated loudness
-- Absolute threshold (-70 LUFS) and relative threshold (-10 LU) gating
-
-**Web Audio Offline Render**
-- Export now uses OfflineAudioContext for guaranteed identical output to preview
-- Same processing chain for preview and export (no more "thin and loud" exports)
-- Pure JavaScript WAV encoder supporting 16-bit and 24-bit
-- Sample rate conversion handled by Web Audio API
-
-**Fixes**
-- Fixed export sounding different from preview (was using FFmpeg on original file)
-- Export now applies all effects identically to what you hear in preview
-
-### v1.2.0 (2026-01-16)
-
-**Stereo Processing**
-- Added real-time stereo width control (0-200%) with M/S matrix processing
-- Renamed "Center Bass" to "Mono Bass" for clarity
-- Stereo width now previews live via Web Audio API
-
-**Level Metering**
-- Added stereo level meter with separate L/R channel analysis
-- Peak hold display with configurable hold time
-- Overload indicator for clipping detection
-
-**UI Improvements**
-- Removed unicode icons from settings card headers for cleaner look
-- Updated grid layout to 5 columns to accommodate Stereo card
-- Changed Stereo card badge from "Export Only" to "Live"
-
-### v1.1.0 (2026-01-17)
-
-**Major Refactor: Vite Build System**
-
-- Migrated from vanilla JavaScript to Vite build system
-- Replaced native FFmpeg (fluent-ffmpeg) with FFmpeg.wasm for browser-based processing
-- Added proper ES Modules support with cross-origin isolation headers
-- Improved development experience with hot module replacement
-- Reduced app bundle size by eliminating native FFmpeg binary
-
-**FFmpeg.wasm Integration**
-
-- Using single-threaded core (`@ffmpeg/core-st`) - no SharedArrayBuffer requirement
-- All FFmpeg files bundled locally (no CDN dependency at runtime)
-- All FFmpeg audio filters available including crossfeed, stereotools, loudnorm
-- Added 60-second timeout for FFmpeg loading (prevents infinite hang)
-- Fixed Uint8Array handling for large file IPC transfers
-- Added `worker-src 'self' blob:` to Content Security Policy
-
-**Features**
-- Added M4A format support
-- Added output presets (Streaming/Studio)
-- Added "Show Tips" toggle in sidebar
-- Improved audio player with seek bar and stop button
-- Added FFmpeg processing cancellation (cancel button during export)
-- Added "Export Only" badge to Center Bass feature
-
-**Architecture Improvements**
-- Created `audioConstants.js` with shared constants for audio parameters
-- Grouped global state into organized objects (`playerState`, `audioNodes`, `fileState`)
-- Added settings validation layer with `SETTINGS_SCHEMA` and `validateSettings()`
-- Fixed IPC listener accumulation in preload.js with proper listener tracking
-- Fixed seek interval race condition with safety clears
-- Added console warnings for loudness analysis failures (instead of silent null)
-- Aligned harshness taming parameters between Web Audio (preview) and FFmpeg (export)
-- Smoothed progress bar transitions (no more 5%→10% jump)
-- Removed dead `previewDir` code
-
-**Fixes**
-- Fixed audio file loading via IPC for proper file:// protocol handling
-- Fixed null reference errors in audio chain initialization
-
-### v1.0.0 (Initial Release)
-
-- Initial release with core mastering features
-- 5-band EQ with presets
-- Loudness normalization to -14 LUFS
-- True peak limiting
-- Quick fix tools (compression, low end cleanup, center bass)
-- Polish effects (cut mud, add air, tame harshness)
-- Real-time preview with FX bypass
-- WAV export at 44.1/48kHz, 16/24-bit
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+```
