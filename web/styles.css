@@ -1168,7 +1168,10 @@ button:active:not(:disabled) {
 /* Web Version Overrides */
 .web-version {
   padding-top: 0;
-  overflow-y: auto;
+  max-width: 1280px;
+  margin: 0 auto;
+  height: auto;
+  min-height: auto;
 }
 
 .web-version .app-header {
@@ -1177,6 +1180,6 @@ button:active:not(:disabled) {
 
 body {
   overflow: auto;
-  min-height: 100vh;
   height: auto;
+  min-height: auto;
 }
