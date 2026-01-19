@@ -2,6 +2,8 @@
 
 A desktop app for mastering AI-generated music (Suno, Udio, etc.) to streaming-ready quality.
 
+**[Try it in your browser](https://entrepeneur4lyf.github.io/Web-Audio-Mastering/)** - No installation required!
+
 ![Web Audio Mastering](screenshot.png)
 
 ## Features
