@@ -1122,14 +1122,14 @@ button:active:not(:disabled) {
   top: 100%;
   right: 0;
   margin-top: 8px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
+  background: #1a1a1a;
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 12px 16px;
   min-width: 220px;
   display: none;
   z-index: 1000;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
 .info-wrapper:hover .info-panel {
