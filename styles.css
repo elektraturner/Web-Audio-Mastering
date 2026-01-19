@@ -1089,3 +1089,24 @@ button:active:not(:disabled) {
 #modalCancelBtn {
   margin-top: 16px;
 }
+
+/* Attribution Footer */
+.attribution {
+  position: fixed;
+  bottom: 8px;
+  right: 12px;
+  font-size: 10px;
+  color: var(--text-muted);
+  opacity: 0.6;
+  z-index: 100;
+}
+
+.attribution a {
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.attribution a:hover {
+  color: var(--text-secondary);
+  text-decoration: underline;
+}
