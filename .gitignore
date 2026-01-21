@@ -4,9 +4,12 @@ node_modules/
 # Build output
 dist/
 dist-electron/
+web/dist/
+web/dist-electron/
 out/
 public/
 release/
+reference/
 
 # Electron-builder artifacts
 *.exe
@@ -20,3 +23,4 @@ Thumbs.db
 # Logs
 *.log
 .vite/
+.vscode/

@@ -10,8 +10,6 @@ function createWindow() {
     height: 800,
     minWidth: 1000,
     minHeight: 750,
-    frame: false,
-    titleBarStyle: 'hidden',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,

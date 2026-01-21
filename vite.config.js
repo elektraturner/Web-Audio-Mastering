@@ -1,17 +1,42 @@
 import { defineConfig } from 'vite';
 import electron from 'vite-plugin-electron/simple';
+import { resolve } from 'path';
 
-export default defineConfig({
+const rootDir = __dirname;
+
+export default defineConfig(({ command }) => ({
+  // Use web/ as the single source of truth for the renderer
+  root: 'web',
+
+  // Build with relative asset paths so the same output works for:
+  // - GitHub Pages (/repo/)
+  // - Electron loadFile() (file://.../dist/index.html)
+  base: command === 'build' ? './' : '/',
+
   plugins: [
     electron({
       main: {
-        entry: 'electron/main.js',
+        entry: resolve(rootDir, 'electron/main.js'),
+        vite: {
+          build: {
+            outDir: resolve(rootDir, 'dist-electron'),
+          },
+        },
       },
       preload: {
-        input: 'electron/preload.js',
+        input: resolve(rootDir, 'electron/preload.js'),
+        vite: {
+          build: {
+            outDir: resolve(rootDir, 'dist-electron'),
+          },
+        },
       },
     }),
   ],
+  build: {
+    outDir: resolve(rootDir, 'dist'),
+    emptyOutDir: true
+  },
   server: {
     headers: {
       'Cross-Origin-Opener-Policy': 'same-origin',
@@ -21,4 +46,4 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['@ffmpeg/ffmpeg', '@ffmpeg/util']
   }
-});
+}));

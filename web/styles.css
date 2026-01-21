@@ -308,6 +308,22 @@ body {
   margin-top: 2px;
 }
 
+.dc-offset-badge {
+  display: inline-block;
+  background: rgba(76, 175, 80, 0.2);
+  color: #4CAF50;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.dc-offset-badge.hidden {
+  display: none;
+}
+
 .btn-change {
   background: var(--bg-card);
   color: var(--text-secondary);
@@ -327,8 +343,8 @@ body {
 /* Audio Player */
 .audio-player {
   display: flex;
-  align-items: center;
-  gap: 14px;
+  flex-direction: column;
+  gap: 12px;
   padding-top: 16px;
   border-top: 1px solid var(--border-subtle);
 }
@@ -381,13 +397,6 @@ body {
   filter: brightness(1.15);
 }
 
-.player-track {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
 .time {
   font-size: 12px;
   color: var(--text-muted);
@@ -424,13 +433,28 @@ body {
 }
 
 .waveform-container {
-  flex: 1;
-  height: 48px;
-  min-width: 200px;
+  width: 100%;
+  height: 80px;
   background: rgba(255, 255, 255, 0.03);
   border-radius: 6px;
   overflow: hidden;
   cursor: pointer;
+}
+
+/* Transport Row */
+.transport-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.transport-spacer {
+  flex: 1;
+}
+
+.time-separator {
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
 .btn-bypass {
@@ -453,7 +477,29 @@ body {
   opacity: 0.5;
 }
 
-.hidden { display: none !important; }
+.level-match-container {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  margin-right: 12px;
+  user-select: none;
+}
+
+.level-match-container:hover {
+  color: var(--text-primary);
+}
+
+.level-match-container input {
+  cursor: pointer;
+  accent-color: var(--theme-accent);
+}
+
+.hidden {
+  display: none !important;
+}
 
 /* Settings Grid */
 .panel-grid {
@@ -525,7 +571,8 @@ body {
 }
 
 /* Badges for Live vs Export Only */
-.live-badge, .export-badge {
+.live-badge,
+.export-badge {
   font-size: 9px;
   font-weight: 500;
   padding: 2px 6px;
@@ -604,11 +651,11 @@ body {
   transition: all 0.2s ease;
 }
 
-.toggle-row input:checked + .toggle {
+.toggle-row input:checked+.toggle {
   background: var(--theme-accent);
 }
 
-.toggle-row input:checked + .toggle::after {
+.toggle-row input:checked+.toggle::after {
   left: 21px;
   background: var(--theme-background);
 }
@@ -902,6 +949,21 @@ body {
   margin-bottom: 12px;
 }
 
+/* Spectrogram Button */
+.transport-btn.active {
+  color: var(--accent-spring-green);
+  border-color: var(--accent-spring-green);
+  background: rgba(0, 255, 127, 0.1);
+}
+
+.spectrogram-panel {
+  transition: height 0.3s ease, margin 0.3s ease;
+}
+
+.spectrogram-panel.hidden {
+  display: none;
+}
+
 .output-preset-btn {
   flex: 1;
   background: var(--bg-elevated);
@@ -1056,7 +1118,9 @@ button:active:not(:disabled) {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .modal-text {
