@@ -40,6 +40,7 @@ import {
   // Renderer
   renderOffline,
   renderToAudioBuffer,
+  resampleBuffer,
   // Waveform
   initWaveSurfer,
   destroyWaveSurfer,
@@ -1501,6 +1502,26 @@ async function processAudio() {
       throw new Error('Audio buffer was unloaded during processing');
     }
 
+    let processBuffer = fileState.originalBuffer;
+
+    // Resample if target rate differs from source rate
+    if (parsedSampleRate !== processBuffer.sampleRate) {
+      showLoadingModal(`Resampling to ${parsedSampleRate / 1000}kHz...`, 3, true);
+      // Small delay to allow UI to update
+      await new Promise(resolve => setTimeout(resolve, 20));
+      
+      try {
+        processBuffer = await resampleBuffer(processBuffer, parsedSampleRate);
+      } catch (err) {
+        console.error('Resampling failed:', err);
+        throw new Error(`Resampling failed: ${err.message}`);
+      }
+    }
+
+    if (processingCancelled) {
+      throw new Error('Cancelled');
+    }
+
     let outputData;
 
     // Hybrid Pipeline: Cached buffer is preview-only (missing EQ/Comp).
@@ -1513,7 +1534,7 @@ async function processAudio() {
       // Use Worker (Preferred), but fall back to main thread if it fails so export is never blocked.
       try {
         const result = await dspWorker.renderFullChain(
-          fileState.originalBuffer,
+          processBuffer,
           settings,
           'export',
           // Keep headroom for WAV encoding + download prep so the bar stays monotonic.
