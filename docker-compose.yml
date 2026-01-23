@@ -1,0 +1,38 @@
+services:
+  test:
+    container_name: test
+    build: .
+    restart: unless-stopped
+    # External Saltbox Network
+    networks:
+      - saltbox
+    environment:
+      - TZ=Europe/Madrid
+      - NODE_ENV=production
+      # Critical for apps behind reverse proxies
+      - ORIGIN=https://test.wethebest.net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=saltbox"
+
+      # HTTPS Router
+      - "traefik.http.routers.test-https.rule=Host(`test.wethebest.net`)"
+      - "traefik.http.routers.test-https.entrypoints=websecure"
+      - "traefik.http.routers.test-https.tls=true"
+      - "traefik.http.routers.test-https.tls.certresolver=zerossl"
+      - "traefik.http.routers.test-https.middlewares=authelia@docker"
+
+      # HTTP Router (Redirection to HTTPS)
+      - "traefik.http.routers.test-http.rule=Host(`test.wethebest.net`)"
+      - "traefik.http.routers.test-http.entrypoints=web"
+      - "traefik.http.routers.test-http.middlewares=test-redirect-scheme"
+
+      # Middlewares
+      - "traefik.http.middlewares.test-redirect-scheme.redirectscheme.scheme=https"
+
+      # Service Port (CRITICAL: Match this to the EXPOSE port in Dockerfile)
+      - "traefik.http.services.test.loadbalancer.server.port=5173"
+
+networks:
+  saltbox:
+    external: true

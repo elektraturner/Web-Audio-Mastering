@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-electron/
+web/dist/
+web/dist-electron/
+out/
+public/
+release/
+reference/
+
+# Electron-builder artifacts
+*.exe
+*.dmg
+*.AppImage
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+.vite/
+.vscode/

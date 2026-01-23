@@ -1,0 +1,95 @@
+{
+  "name": "web-audio-mastering",
+  "version": "1.3.4",
+  "description": "Desktop app for mastering AI-generated music (or any audio for that matter) to streaming-ready quality",
+  "homepage": "https://entrepeneur4lyf.github.io/Web-Audio-Mastering/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/entrepeneur4lyf/Web-Audio-Mastering.git"
+  },
+  "bugs": {
+    "url": "https://github.com/entrepeneur4lyf/Web-Audio-Mastering/issues"
+  },
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "start": "vite",
+    "dev": "vite",
+    "build:web": "vite build",
+    "build": "vite build && electron-builder",
+    "build:win": "vite build && electron-builder --win",
+    "build:mac": "vite build && electron-builder --mac",
+    "build:linux": "vite build && electron-builder --linux",
+    "preview": "vite preview"
+  },
+  "keywords": [
+    "web audio api",
+    "audio",
+    "mastering",
+    "spotify",
+    "audio",
+    "electron",
+    "ai generated music",
+    "audio mastering",
+    "audio processing",
+    "audio editing",
+    "audio production",
+    "audio mixing",
+    "audio recording",
+    "audio editing software",
+    "audio production software",
+    "audio mastering software",
+    "audio processing software",
+    "audio editing tools",
+    "audio production tools",
+    "audio mastering tools",
+    "audio processing tools",
+    "audio editing software for windows",
+    "audio production software for windows",
+    "audio mastering software for windows",
+    "audio processing software for windows",
+    "audio editing software for mac",
+    "audio production software for mac",
+    "audio mastering software for mac",
+    "audio processing software for mac",
+    "audio editing software for linux",
+    "audio production software for linux",
+    "audio mastering software for linux",
+    "audio processing software for linux"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^39.2.7",
+    "electron-builder": "^26.4.0",
+    "vite": "^7.3.1",
+    "vite-plugin-electron": "^0.29.0",
+    "vite-plugin-electron-renderer": "^0.14.6"
+  },
+  "build": {
+    "appId": "com.webaudio.mastering",
+    "productName": "Web Audio Mastering",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*"
+    ],
+    "win": {
+      "target": "portable",
+      "icon": "icon.png"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "icon.png"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "icon.png"
+    }
+  },
+  "dependencies": {
+    "fft.js": "^4.0.4",
+    "wavesurfer.js": "^7.12.1"
+  }
+}
